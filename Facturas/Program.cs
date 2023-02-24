@@ -8,10 +8,11 @@ namespace Facturas
     {
         static void Main(string[] args)
         {
-           List<string> paths= SFTP.SFTP.ConnectionSFTP();
+            ProcessTXT processTXT = new ProcessTXT();
+            List<string> paths = SFTP.SFTP.ConnectionSFTP();
             foreach (string path in paths)
             {
-                ProcessTXT.LoadTXT(path);
+                processTXT.LoadTXT(path);
             }
             Console.WriteLine("Hello World!");
         }

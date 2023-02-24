@@ -1,4 +1,5 @@
-﻿using EntityLayer;
+﻿using DataLayer.Interfaces;
+using EntityLayer;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -133,6 +134,34 @@ namespace DataLayer
                 }
                 return Tests;
             }
+        }
+
+        public Dictionary<string, string> GetXMLAttributes(int client)
+        {
+            List<DbParameter> parameterList = new List<DbParameter>();
+            Dictionary<string,string> param = new Dictionary<string,string>();
+
+
+            parameterList.Add(new SqlParameter()
+            {
+                ParameterName = $"@IdClient",
+                SqlDbType = SqlDbType.Int,
+                Value = client
+            });
+
+            using (DbDataReader dataReader = base.GetDataReader("GetXMLAttributes", parameterList, CommandType.StoredProcedure))
+            {
+                if (dataReader != null && dataReader.HasRows)
+                {
+                    while (dataReader.Read())
+                    { 
+                        param.Add((string)dataReader["AttributeName"], (string)dataReader["AttributeValue"]);
+                    }
+                   
+                }
+
+            }
+            return param;
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using DataLayer;
+using DataLayer.Interfaces;
 using EntityLayer;
 using System;
 using System.Collections.Generic;
@@ -7,9 +8,9 @@ using System.Text;
 
 namespace BusinessLayer
 {
-    public static class ProcessTXT
+    public class ProcessTXT: ITXT
     {
-        public static void LoadTXT(string fileStream)
+        public void LoadTXT(string fileStream)
         {
             Log log = new Log();
             try

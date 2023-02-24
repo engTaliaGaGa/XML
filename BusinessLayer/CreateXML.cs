@@ -1,4 +1,5 @@
 ﻿using DataLayer;
+using DataLayer.Interfaces;
 using EntityLayer;
 using Newtonsoft.Json;
 using System;
@@ -12,14 +13,14 @@ using Enum = EntityLayer.Enum;
 
 namespace BusinessLayer
 {
-    public class CreateXML
+    public class CreateXML : IXML
     {
 
         XmlDocument doc = new XmlDocument();
         Log log = new Log();
+        XMLProcess xml = new XMLProcess();
         List<XMLTemplate> _templates = new List<XMLTemplate>();
         List<string> fieldList = new List<string>();
-        string ns = "xmlns:cfdi";
         string URL = "http://www.sat.gob.mx/cfd/3";
         public void CreationXML(string[] fields, List<XMLTemplate> templates)
         {
@@ -31,18 +32,21 @@ namespace BusinessLayer
                 var doc = new XmlDocument();
                 doc.AppendChild(doc.CreateXmlDeclaration("1.0", "utf-8", null));
                 List<string> ok = templates.Select(x => x.Element).Distinct().ToList();
+                Dictionary<string, string> att = xml.GetXMLAttributes(templates.Select(x => x.IdMapClient).Distinct().FirstOrDefault());
 
-                XmlElement rootnode = doc.CreateElement("cfdi:Comprobante", null);
+                XmlElement rootnode = doc.CreateElement(ok.First(), null);
                 doc.AppendChild(rootnode);
 
-                rootnode.SetAttribute("xmlns:cfdi", "http://www.sat.gob.mx/cfd/3");
-                rootnode.SetAttribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
-                rootnode.SetAttribute("xsi:schemaLocation", "http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd http://www.sat.gob.mx/sitio_internet/cfd/leyendasFiscales/leyendasFisc.xsd");
-
+                foreach (KeyValuePair<string, string> entry in att)
+                {
+                    rootnode.SetAttribute(entry.Key, entry.Value);
+                }
                 foreach (string pItem in ok)
                 {
+
                     XmlNode parent = CreateNODES(doc, pItem);
                     rootnode.AppendChild(parent);
+
                 }
 
                 doc.Save(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDoc‌​uments), "xml") + Guid.NewGuid().ToString() + ".xml");
@@ -56,7 +60,7 @@ namespace BusinessLayer
         private string AddNodes(string section, List<string> values, int index)
         {
             string nodo = string.Empty;
-            XMLProcess xml = new XMLProcess();
+
             List<string> fields = values[index + 1].ToString().Split('|').ToList();
             List<XMLTemplate> nodes = xml.GetElementsBySection(section);
 
@@ -79,18 +83,22 @@ namespace BusinessLayer
             return nodo;
         }
 
-        public XmlNode CreateNODES(XmlDocument doc, string list)
+        private XmlNode CreateNODES(XmlDocument doc, string list)
         {
 
             XmlNode parent = doc.CreateNode(XmlNodeType.Element, list, URL);
 
+            XmlNodeList elemList = doc.GetElementsByTagName(list);
+            if (elemList.Count > 0)
+            {
+                CreateChildsNuevo(doc, list, elemList[0]);
+            }
 
-            //CreateChilds(doc, list, parent);
             CreateChildsNuevo(doc, list, parent);
             return parent;
 
         }
-        public void CreateChilds(XmlDocument doc, string list, XmlNode parent)
+        private void CreateChilds(XmlDocument doc, string list, XmlNode parent)
         {
 
             List<XMLTemplate> ok = _templates.Where(x => x.Element == list).ToList();
@@ -184,7 +192,7 @@ namespace BusinessLayer
 
 
         }
-        public void CreateChildsItems(XmlDocument doc, string section, List<string> fieldsItem, XMLTemplate pItem)
+        private void CreateChildsItems(XmlDocument doc, string section, List<string> fieldsItem, XMLTemplate pItem)
         {
 
             List<XMLTemplate> ok = _templates.Where(x => x.Section == section && x.Column != null).ToList();
@@ -199,7 +207,7 @@ namespace BusinessLayer
 
 
 
-        public void CreateChildsNuevo(XmlDocument doc, string list, XmlNode parent)
+        private void CreateChildsNuevo(XmlDocument doc, string list, XmlNode parent)
         {
 
             List<XMLTemplate> ok = _templates.Where(x => x.Element == list && x.IdType == null).ToList();
