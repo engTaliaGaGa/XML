@@ -1,4 +1,6 @@
 ﻿using BusinessLayer;
+using DataLayer;
+using EntityLayer;
 using Renci.SshNet;
 using Renci.SshNet.Sftp;
 using System;
@@ -17,6 +19,7 @@ namespace Facturas.SFTP
         {
             List<string> paths = new List<string>();
             string path = string.Empty;
+            Log log = new Log();
             try
             {
                 //SFTP
@@ -35,7 +38,8 @@ namespace Facturas.SFTP
 
             }
             catch (Exception e)
-            {
+            {            
+                log.WriteLog(e, System.Reflection.MethodBase.GetCurrentMethod().Name.ToString());
                 Console.WriteLine("An exception has been caught " + e.ToString());
             }
             return paths;
@@ -46,7 +50,7 @@ namespace Facturas.SFTP
         SftpClient sftpClient, string sourceRemotePath, string destLocalPath)
         {
             string sourceFilePath = string.Empty;
-           
+
             List<string> paths = new List<string>();
             Directory.CreateDirectory(destLocalPath);
             IEnumerable<SftpFile> files = sftpClient.ListDirectory(sourceRemotePath);

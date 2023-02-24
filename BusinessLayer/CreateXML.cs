@@ -14,34 +14,43 @@ namespace BusinessLayer
 {
     public class CreateXML
     {
+
         XmlDocument doc = new XmlDocument();
+        Log log = new Log();
         List<XMLTemplate> _templates = new List<XMLTemplate>();
         List<string> fieldList = new List<string>();
         string ns = "xmlns:cfdi";
         string URL = "http://www.sat.gob.mx/cfd/3";
         public void CreationXML(string[] fields, List<XMLTemplate> templates)
         {
-            _templates = templates;
-
-            fieldList.AddRange(fields);
-            var doc = new XmlDocument();
-            doc.AppendChild(doc.CreateXmlDeclaration("1.0", "utf-8", null));
-            List<string> ok = templates.Select(x => x.Element).Distinct().ToList();
-
-            XmlElement rootnode = doc.CreateElement("cfdi:Comprobante", null);
-            doc.AppendChild(rootnode);
-
-            rootnode.SetAttribute("xmlns:cfdi", "http://www.sat.gob.mx/cfd/3");
-            rootnode.SetAttribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
-            rootnode.SetAttribute("xsi:schemaLocation", "http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd http://www.sat.gob.mx/sitio_internet/cfd/leyendasFiscales/leyendasFisc.xsd");
-
-            foreach (string pItem in ok)
+            try
             {
-                XmlNode parent = CreateNODES(doc, pItem);
-                rootnode.AppendChild(parent);
+                _templates = templates;
+
+                fieldList.AddRange(fields);
+                var doc = new XmlDocument();
+                doc.AppendChild(doc.CreateXmlDeclaration("1.0", "utf-8", null));
+                List<string> ok = templates.Select(x => x.Element).Distinct().ToList();
+
+                XmlElement rootnode = doc.CreateElement("cfdi:Comprobante", null);
+                doc.AppendChild(rootnode);
+
+                rootnode.SetAttribute("xmlns:cfdi", "http://www.sat.gob.mx/cfd/3");
+                rootnode.SetAttribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
+                rootnode.SetAttribute("xsi:schemaLocation", "http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd http://www.sat.gob.mx/sitio_internet/cfd/leyendasFiscales/leyendasFisc.xsd");
+
+                foreach (string pItem in ok)
+                {
+                    XmlNode parent = CreateNODES(doc, pItem);
+                    rootnode.AppendChild(parent);
+                }
+
+                doc.Save(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDoc‌​uments), "xml") + Guid.NewGuid().ToString() + ".xml");
             }
-                
-            doc.Save(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDoc‌​uments), "xml") + Guid.NewGuid().ToString() + ".xml");
+            catch (Exception e)
+            {
+                log.WriteLog(e, System.Reflection.MethodBase.GetCurrentMethod().Name.ToString());
+            }
         }
 
         private string AddNodes(string section, List<string> values, int index)
@@ -73,11 +82,11 @@ namespace BusinessLayer
         public XmlNode CreateNODES(XmlDocument doc, string list)
         {
 
-            XmlNode parent  = doc.CreateNode(XmlNodeType.Element, list, URL);
+            XmlNode parent = doc.CreateNode(XmlNodeType.Element, list, URL);
 
 
-            CreateChilds(doc, list, parent);
-
+            //CreateChilds(doc, list, parent);
+            CreateChildsNuevo(doc, list, parent);
             return parent;
 
         }
@@ -85,27 +94,92 @@ namespace BusinessLayer
         {
 
             List<XMLTemplate> ok = _templates.Where(x => x.Element == list).ToList();
+
             foreach (XMLTemplate pItem in ok)
             {
                 var perAux = fieldList.FindIndex(x => x.Contains(pItem.Section));
                 List<string> fieldsNodes = fieldList[perAux + 1].ToString().Split('|').ToList();
 
-                if (pItem.Column != null)
+                if (pItem.IdType != (int)Enum.Type.Items)
                 {
-                    if (pItem.ParentElement != "cfdi:Conceptos")
+                    if (pItem.Column != null)
                     {
-                     
-                        XmlNodeList dataNodes = doc.GetElementsByTagName(pItem.Element);
-            
+
                         XmlAttribute attribute = doc.CreateAttribute(pItem.Attribute);
                         attribute.Value = (pItem.FillWith != null || Convert.ToInt32(pItem.Column) < 0 ? pItem.FillWith : fieldsNodes[Convert.ToInt32(pItem.Column) - 1].ToString());
-               
                         parent.Attributes.Append(attribute);
+                    }
+                    else
+                    {
+                        if (pItem.ParentElement != "root")
+                        {
+                            XmlNodeList dataNodes = doc.GetElementsByTagName(list);
+                            if (dataNodes.Count == 0)
+                            {
+                                XmlNode newElem = doc.CreateElement("event");
+                                XmlAttribute newAttr = doc.CreateAttribute("type");
+                                newAttr.Value = "VIZ";
+                                newElem.Attributes.Append(newAttr);
+                                doc.CreateNode(XmlNodeType.Element, "Event", null);
+                            }
+                            //;
 
+
+                            //    XmlAttribute attribute = doc.CreateAttribute(pItem.Attribute);
+                            //    attribute.Value = "Attributo";
+
+                            //    parent.Attributes.Append(attribute);
+                            //}
+
+                            //else
+                            //{
+                            //    XmlNode newNode = doc.CreateNode(XmlNodeType.Element, "Database", "");
+                            //    parent.AppendChild(newNode);
+                            //}
+                            //XmlElement newparent = doc.CreateElement(pItem.Element);
+                            //doc.AppendChild(newparent);
+                            //XmlAttribute attribute = doc.CreateAttribute(pItem.Attribute);
+                            //attribute.Value = "Hijo del hijo";
+
+                            //newparent.Attributes.Append(attribute);
+
+                        }
+                        //parent = CreateNODES(doc, pItem.Element);
+                        //doc.AppendChild(parent);
                     }
 
                 }
+                else
+                {
+                    List<XMLTemplate> newParent = _templates.Where(x => x.Element == list).ToList();
+                    List<string> NewfieldsNodes = fieldList[perAux + 2].ToString().Split('|').ToList();
+                    foreach (XMLTemplate NewpItem in newParent)
+                    {
+                        if (NewpItem.Column != null)
+                        {
 
+                            XmlAttribute attribute = doc.CreateAttribute(NewpItem.Attribute);
+                            attribute.Value = (NewpItem.FillWith != null || Convert.ToInt32(NewpItem.Column) < 0 ? NewpItem.FillWith : NewfieldsNodes[Convert.ToInt32(NewpItem.Column) - 1].ToString());
+                            parent.Attributes.Append(attribute);
+                        }
+                        else
+                        {
+                            if (NewpItem.ParentElement != "root")
+                            {
+                                XmlNodeList dataNodes = doc.GetElementsByTagName(list);
+                                if (dataNodes.Count == 0)
+                                {
+                                    XmlNode newElem = doc.CreateElement("event");
+                                    XmlAttribute newAttr = doc.CreateAttribute("type");
+                                    newAttr.Value = "VIZ";
+                                    newElem.Attributes.Append(newAttr);
+                                    doc.CreateNode(XmlNodeType.Element, "Event", null);
+                                }
+                            }
+
+                        }
+                    }
+                }
             }
 
 
@@ -122,8 +196,42 @@ namespace BusinessLayer
             childOne.InnerText = "This is the first child";
             id.AppendChild(childOne);
         }
+
+
+
+        public void CreateChildsNuevo(XmlDocument doc, string list, XmlNode parent)
+        {
+
+            List<XMLTemplate> ok = _templates.Where(x => x.Element == list && x.IdType == null).ToList();
+            var xmlAttributes = _templates.Select(x => x.Element == list).ToList();
+            List<string> fieldsNodes;
+            foreach (XMLTemplate pItem in ok)
+            {
+                if (pItem.Column != null)
+                {
+                    var perAux = fieldList.FindIndex(x => x.Contains(pItem.Section));
+                    if (fieldList[perAux + 1].ToString().Contains('|'))
+                    {
+                        fieldsNodes = fieldList[perAux + 1].ToString().Split('|').ToList();
+                    }
+                    else
+                    {
+                        fieldsNodes = fieldList[perAux + 2].ToString().Split('|').ToList();
+                    }
+
+
+                    XmlAttribute attribute = doc.CreateAttribute(pItem.Attribute);
+                    attribute.Value = (pItem.FillWith != null || Convert.ToInt32(pItem.Column) < 0 ? pItem.FillWith : fieldsNodes[Convert.ToInt32(pItem.Column) - 1].ToString());
+                    parent.Attributes.Append(attribute);
+                }
+
+
+
+            }
+        }
+
+
     }
-
-
 }
+
 
