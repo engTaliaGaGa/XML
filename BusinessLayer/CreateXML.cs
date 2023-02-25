@@ -53,7 +53,7 @@ namespace BusinessLayer
                     //Don't repeat root node
                     string rootName = doc.SelectSingleNode("/*").Name;
                     if (rootName != pItem)
-                    {
+                    {                        
                         //Create                      
                         XmlNode parent = CreateNODES(doc, pItem);
                         rootnode.AppendChild(parent);
@@ -114,7 +114,8 @@ namespace BusinessLayer
             {
                 XmlNode xmlElement = doc.CreateNode(XmlNodeType.Element, pItem.Element, URL);
                 parent.AppendChild(xmlElement);
-                CreateChildsNuevo(doc, pItem.Element, xmlElement);
+
+               CreateChildsNuevo(doc, pItem.Element, parent);
             }
         }
         private void CreateChildsNuevo(XmlDocument doc, string list, XmlNode parent)
@@ -141,7 +142,7 @@ namespace BusinessLayer
 
                         XmlAttribute attribute = doc.CreateAttribute(pItem.Attribute);
                         attribute.Value = (pItem.FillWith != null || Convert.ToInt32(pItem.Column) < 0 ? pItem.FillWith : fieldsNodes[Convert.ToInt32(pItem.Column) - 1].ToString());
-                        parent.Attributes.Append(attribute); ;
+                        parent.Attributes.Append(attribute);
                     }
 
                 }
