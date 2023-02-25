@@ -21,7 +21,8 @@ namespace BusinessLayer
         XMLProcess xml = new XMLProcess();
         List<XMLTemplate> _templates = new List<XMLTemplate>();
         List<string> fieldList = new List<string>();
-        string URL = "http://www.sat.gob.mx/cfd/3";
+        const string URL = "http://www.sat.gob.mx/cfd/3";
+        const string prefix = "cfdi";
         public void CreationXML(string[] fields, List<XMLTemplate> templates)
         {
             try
@@ -32,20 +33,32 @@ namespace BusinessLayer
                 var doc = new XmlDocument();
                 doc.AppendChild(doc.CreateXmlDeclaration("1.0", "utf-8", null));
                 List<string> ok = templates.Select(x => x.Element).Distinct().ToList();
+
+                #region Root Node
                 Dictionary<string, string> att = xml.GetXMLAttributes(templates.Select(x => x.IdMapClient).Distinct().FirstOrDefault());
 
-                XmlElement rootnode = doc.CreateElement(ok.First(), null);
+                string rootSection = templates.Select(x => x.Section).FirstOrDefault();
+                var rootnode = doc.CreateElement(prefix, rootSection, URL);
                 doc.AppendChild(rootnode);
-
+                
                 foreach (KeyValuePair<string, string> entry in att)
                 {
                     rootnode.SetAttribute(entry.Key, entry.Value);
                 }
+
+                #endregion
+
                 foreach (string pItem in ok)
                 {
+                    //Don't repeat root node
+                    string rootName = doc.SelectSingleNode("/*").Name;
+                    if (rootName != pItem)
+                    {
+                        //Create                      
+                        XmlNode parent = CreateNODES(doc, pItem);
+                        rootnode.AppendChild(parent);
 
-                    XmlNode parent = CreateNODES(doc, pItem);
-                    rootnode.AppendChild(parent);
+                    }
 
                 }
 
@@ -85,160 +98,64 @@ namespace BusinessLayer
 
         private XmlNode CreateNODES(XmlDocument doc, string list)
         {
-
+            //Node without childs
             XmlNode parent = doc.CreateNode(XmlNodeType.Element, list, URL);
 
-            XmlNodeList elemList = doc.GetElementsByTagName(list);
-            if (elemList.Count > 0)
-            {
-                CreateChildsNuevo(doc, list, elemList[0]);
-            }
-
+            //Create Childs to Node 
             CreateChildsNuevo(doc, list, parent);
             return parent;
 
         }
-        private void CreateChilds(XmlDocument doc, string list, XmlNode parent)
+        private void CreateChilds(XmlDocument doc, XMLTemplate list, XmlNode parent)
         {
+            XMLTemplate pItem = _templates.Where(x => x.ParentElement == list.Element && x.Column == null).FirstOrDefault();
 
-            List<XMLTemplate> ok = _templates.Where(x => x.Element == list).ToList();
-
-            foreach (XMLTemplate pItem in ok)
+            if (pItem != null)
             {
-                var perAux = fieldList.FindIndex(x => x.Contains(pItem.Section));
-                List<string> fieldsNodes = fieldList[perAux + 1].ToString().Split('|').ToList();
-
-                if (pItem.IdType != (int)Enum.Type.Items)
+                XmlNode xmlElement = doc.CreateNode(XmlNodeType.Element, pItem.Element, URL);
+                parent.AppendChild(xmlElement);
+                CreateChildsNuevo(doc, pItem.Element, xmlElement);
+            }
+        }
+        private void CreateChildsNuevo(XmlDocument doc, string list, XmlNode parent)
+        {
+            List<XMLTemplate> ok = _templates.Where(x => x.Element == list && x.IdType == null).ToList();
+            List<string> fieldsNodes;
+            //Create attributes in Node
+            if (ok.Count > 0)
+            {
+                foreach (XMLTemplate pItem in ok)
                 {
                     if (pItem.Column != null)
                     {
-
-                        XmlAttribute attribute = doc.CreateAttribute(pItem.Attribute);
-                        attribute.Value = (pItem.FillWith != null || Convert.ToInt32(pItem.Column) < 0 ? pItem.FillWith : fieldsNodes[Convert.ToInt32(pItem.Column) - 1].ToString());
-                        parent.Attributes.Append(attribute);
-                    }
-                    else
-                    {
-                        if (pItem.ParentElement != "root")
+                        var perAux = fieldList.FindIndex(x => x.Contains(pItem.Section));
+                        if (fieldList[perAux + 1].ToString().Contains('|'))
                         {
-                            XmlNodeList dataNodes = doc.GetElementsByTagName(list);
-                            if (dataNodes.Count == 0)
-                            {
-                                XmlNode newElem = doc.CreateElement("event");
-                                XmlAttribute newAttr = doc.CreateAttribute("type");
-                                newAttr.Value = "VIZ";
-                                newElem.Attributes.Append(newAttr);
-                                doc.CreateNode(XmlNodeType.Element, "Event", null);
-                            }
-                            //;
-
-
-                            //    XmlAttribute attribute = doc.CreateAttribute(pItem.Attribute);
-                            //    attribute.Value = "Attributo";
-
-                            //    parent.Attributes.Append(attribute);
-                            //}
-
-                            //else
-                            //{
-                            //    XmlNode newNode = doc.CreateNode(XmlNodeType.Element, "Database", "");
-                            //    parent.AppendChild(newNode);
-                            //}
-                            //XmlElement newparent = doc.CreateElement(pItem.Element);
-                            //doc.AppendChild(newparent);
-                            //XmlAttribute attribute = doc.CreateAttribute(pItem.Attribute);
-                            //attribute.Value = "Hijo del hijo";
-
-                            //newparent.Attributes.Append(attribute);
-
-                        }
-                        //parent = CreateNODES(doc, pItem.Element);
-                        //doc.AppendChild(parent);
-                    }
-
-                }
-                else
-                {
-                    List<XMLTemplate> newParent = _templates.Where(x => x.Element == list).ToList();
-                    List<string> NewfieldsNodes = fieldList[perAux + 2].ToString().Split('|').ToList();
-                    foreach (XMLTemplate NewpItem in newParent)
-                    {
-                        if (NewpItem.Column != null)
-                        {
-
-                            XmlAttribute attribute = doc.CreateAttribute(NewpItem.Attribute);
-                            attribute.Value = (NewpItem.FillWith != null || Convert.ToInt32(NewpItem.Column) < 0 ? NewpItem.FillWith : NewfieldsNodes[Convert.ToInt32(NewpItem.Column) - 1].ToString());
-                            parent.Attributes.Append(attribute);
+                            fieldsNodes = fieldList[perAux + 1].ToString().Split('|').ToList();
                         }
                         else
                         {
-                            if (NewpItem.ParentElement != "root")
-                            {
-                                XmlNodeList dataNodes = doc.GetElementsByTagName(list);
-                                if (dataNodes.Count == 0)
-                                {
-                                    XmlNode newElem = doc.CreateElement("event");
-                                    XmlAttribute newAttr = doc.CreateAttribute("type");
-                                    newAttr.Value = "VIZ";
-                                    newElem.Attributes.Append(newAttr);
-                                    doc.CreateNode(XmlNodeType.Element, "Event", null);
-                                }
-                            }
-
+                            fieldsNodes = fieldList[perAux + 2].ToString().Split('|').ToList();
                         }
+
+
+                        XmlAttribute attribute = doc.CreateAttribute(pItem.Attribute);
+                        attribute.Value = (pItem.FillWith != null || Convert.ToInt32(pItem.Column) < 0 ? pItem.FillWith : fieldsNodes[Convert.ToInt32(pItem.Column) - 1].ToString());
+                        parent.Attributes.Append(attribute); ;
                     }
+
                 }
             }
-
-
-        }
-        private void CreateChildsItems(XmlDocument doc, string section, List<string> fieldsItem, XMLTemplate pItem)
-        {
-
-            List<XMLTemplate> ok = _templates.Where(x => x.Section == section && x.Column != null).ToList();
-            XmlElement id = doc.CreateElement(pItem.Attribute);
-            id.SetAttribute(pItem.Attribute, (pItem.FillWith != null || Convert.ToInt32(pItem.Column) < 0 ? pItem.FillWith : fieldsItem[Convert.ToInt32(pItem.Column) - 1].ToString()));
-            id.SetAttribute("passWord", "Tushar");
-
-            XmlElement childOne = doc.CreateElement(pItem.Attribute);
-            childOne.InnerText = "This is the first child";
-            id.AppendChild(childOne);
-        }
-
-
-
-        private void CreateChildsNuevo(XmlDocument doc, string list, XmlNode parent)
-        {
-
-            List<XMLTemplate> ok = _templates.Where(x => x.Element == list && x.IdType == null).ToList();
-            var xmlAttributes = _templates.Select(x => x.Element == list).ToList();
-            List<string> fieldsNodes;
-            foreach (XMLTemplate pItem in ok)
+            else
             {
-                if (pItem.Column != null)
-                {
-                    var perAux = fieldList.FindIndex(x => x.Contains(pItem.Section));
-                    if (fieldList[perAux + 1].ToString().Contains('|'))
-                    {
-                        fieldsNodes = fieldList[perAux + 1].ToString().Split('|').ToList();
-                    }
-                    else
-                    {
-                        fieldsNodes = fieldList[perAux + 2].ToString().Split('|').ToList();
-                    }
-
-
-                    XmlAttribute attribute = doc.CreateAttribute(pItem.Attribute);
-                    attribute.Value = (pItem.FillWith != null || Convert.ToInt32(pItem.Column) < 0 ? pItem.FillWith : fieldsNodes[Convert.ToInt32(pItem.Column) - 1].ToString());
-                    parent.Attributes.Append(attribute);
-                }
-
-
-
+                XMLTemplate temp = _templates.Where(x => x.Element == list && x.Row == null).FirstOrDefault();
+                XmlNode xmlElement = doc.CreateNode(XmlNodeType.Element, temp.Element, URL);
+                parent.AppendChild(xmlElement);
+                CreateChilds(doc, temp, xmlElement);
             }
+
         }
-
-
+       
     }
 }
 
