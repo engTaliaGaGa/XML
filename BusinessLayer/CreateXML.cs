@@ -40,7 +40,7 @@ namespace BusinessLayer
                 string rootSection = templates.Select(x => x.Section).FirstOrDefault();
                 var rootnode = doc.CreateElement(prefix, rootSection, URL);
                 doc.AppendChild(rootnode);
-                
+
                 foreach (KeyValuePair<string, string> entry in att)
                 {
                     rootnode.SetAttribute(entry.Key, entry.Value);
@@ -53,8 +53,15 @@ namespace BusinessLayer
                     //Don't repeat root node
                     string rootName = doc.SelectSingleNode("/*").Name;
                     if (rootName != pItem)
-                    {                        
-                        //Create                      
+                    {
+
+                        if (pItem == "cfdi:Complemento")
+                        {
+                        }
+
+                        //Create           
+
+
                         XmlNode parent = CreateNODES(doc, pItem);
                         rootnode.AppendChild(parent);
 
@@ -70,32 +77,6 @@ namespace BusinessLayer
             }
         }
 
-        private string AddNodes(string section, List<string> values, int index)
-        {
-            string nodo = string.Empty;
-
-            List<string> fields = values[index + 1].ToString().Split('|').ToList();
-            List<XMLTemplate> nodes = xml.GetElementsBySection(section);
-
-            foreach (XMLTemplate node in nodes)
-            {
-                if (node.IdType == (int?)Enum.Type.Items)
-                {
-                    List<string> fieldsItem = values[index + 2].ToString().Split('|').ToList();
-                    nodo += node.Attribute + "= \"" + (node.Column != null ? fieldsItem[Convert.ToInt32(node.Column) - 1].ToString() : "") + "\"";
-
-                }
-                else
-                {
-                    if (node.Column != null && fields.Count > 1)
-                    {
-                        nodo += node.Attribute + "= \"" + (node.FillWith != null || Convert.ToInt32(node.Column) < 0 ? node.FillWith : fields[Convert.ToInt32(node.Column) - 1].ToString()) + "\"";
-                    }
-                }
-            }
-            return nodo;
-        }
-
         private XmlNode CreateNODES(XmlDocument doc, string list)
         {
             //Node without childs
@@ -106,17 +87,24 @@ namespace BusinessLayer
             return parent;
 
         }
-        private void CreateChilds(XmlDocument doc, XMLTemplate list, XmlNode parent)
+        private XmlNode CreateChilds(XmlDocument doc, XMLTemplate list, XmlNode parent)
         {
+            XmlNode hijo = null;
             XMLTemplate pItem = _templates.Where(x => x.ParentElement == list.Element && x.Column == null).FirstOrDefault();
+            //List<XMLTemplate> getPropertyPhotos = (from up in _templates
+            //                                       where _templates.Any(ut => ut.ParentElement == up.Element && up.ParentElement == list.Element && up.Row != null)
+            //                                       select up).Distinct().ToList();
 
-            if (pItem != null)
+            if (pItem == null)
             {
-                XmlNode xmlElement = doc.CreateNode(XmlNodeType.Element, pItem.Element, URL);
-                parent.AppendChild(xmlElement);
-
-               CreateChildsNuevo(doc, pItem.Element, parent);
+                XmlNode xmlElement = doc.CreateNode(XmlNodeType.Element, list.Element, URL);
+              
+                CreateChildsNuevo(doc, list.Element, xmlElement);
+                //parent.AppendChild(xmlElement);
+                hijo = xmlElement;
             }
+
+            return hijo;
         }
         private void CreateChildsNuevo(XmlDocument doc, string list, XmlNode parent)
         {
@@ -147,16 +135,31 @@ namespace BusinessLayer
 
                 }
             }
-            else
+            //else
+            //{
+            //    XMLTemplate temp3 = _templates.Where(x => x.ParentElement == list && x.Row == null).FirstOrDefault();
+            //    if (temp3 != null)
+            //    {
+            //        XmlNode xmlElement = doc.CreateNode(XmlNodeType.Element, temp3.Element, URL);
+            //    }
+            //}
+            XMLTemplate temp2 = _templates.Where(x => x.ParentElement == list && x.Row == null).FirstOrDefault();
+            if (temp2 != null)
             {
-                XMLTemplate temp = _templates.Where(x => x.Element == list && x.Row == null).FirstOrDefault();
-                XmlNode xmlElement = doc.CreateNode(XmlNodeType.Element, temp.Element, URL);
-                parent.AppendChild(xmlElement);
-                CreateChilds(doc, temp, xmlElement);
+                XmlNode xmlElement = doc.CreateNode(XmlNodeType.Element, temp2.Element, URL);
+
+                XmlNode hijo = CreateChilds(doc, temp2, xmlElement);
+                if (hijo != null)
+                {
+                    //xmlElement.AppendChild(hijo);
+                    parent.AppendChild(hijo);
+                }
             }
 
         }
-       
+
+
+
     }
 }
 
