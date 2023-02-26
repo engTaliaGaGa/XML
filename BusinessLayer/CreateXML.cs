@@ -56,15 +56,18 @@ namespace BusinessLayer
                     //Don't repeat root node
                     string rootName = doc.SelectSingleNode("/*").Name;
                     if (rootName != pItem)
-                    {                  
-                        //Create     
+                    {                  //Create      
+
                         XmlNode parent = CreateNODES(doc, pItem, rootName);
                         if (parent != null)
                         {
                             rootnode.AppendChild(parent);
                         }
+
                     }
+
                 }
+
                 doc.Save(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDoc‌​uments), "xml") + Guid.NewGuid().ToString() + ".xml");
             }
             catch (Exception e)
@@ -75,6 +78,7 @@ namespace BusinessLayer
 
         private XmlNode CreateNODES(XmlDocument doc, string list, string rootName)
         {
+
             XmlNode parent = null;
             List<string> ok = (from up in _templates
                                where _templates.Any(ut => ut.ParentElement == up.Element && up.Element == list)
@@ -84,18 +88,30 @@ namespace BusinessLayer
                 //Node without childs
                 parent = doc.CreateNode(XmlNodeType.Element, list, URL);
 
-                CreateChildsNoParents(doc, list, parent);
-                XMLTemplate pItem = _templates.Where(x => x.ParentElement == list && x.IdType == null).FirstOrDefault();
 
+                XMLTemplate pItem = _templates.Where(x => x.ParentElement == list && x.IdType == null).FirstOrDefault();
+                if (pItem != null)
+                {
+                    XmlNode parentCicle = CreateNODES(doc, pItem.Element, rootName);
+                    //Create Childs to Node 
+                    CreateChildsNoParents(doc, list, parentCicle);
+                    parent.AppendChild(parentCicle);
+                }
+                else
+                {
+                    CreateChildsNoParents(doc, list, parent);
+                }
             }
             else
             {
                 parent = doc.CreateNode(XmlNodeType.Element, list, URL);
 
                 //Create Childs to Node 
-
+                CreateChildsNoParents(doc, list, parent);
                 XMLTemplate pItem = _templates.Where(x => x.ParentElement == list && x.IdType == null).FirstOrDefault();
-                CreateChildsParent(doc, list, parent);
+                XmlNode parentCicle = CreateNODES(doc, pItem.Element, rootName);
+                CreateChildsParent(doc, list, parentCicle);
+                parent.AppendChild(parentCicle);
             }
             return parent;
 
@@ -162,7 +178,44 @@ namespace BusinessLayer
 
                 }
             }
+            XMLTemplate temp2 = _templates.Where(x => x.ParentElement == list && x.Row == null).FirstOrDefault();
+            if (temp2 != null)
+            {
+                XmlNode xmlElement = doc.CreateNode(XmlNodeType.Element, temp2.Element, URL);
+            }
 
+        }
+        private XmlAttribute GenerateAttributes(string list, XmlNode parent)
+        {
+            XmlAttribute attribute = null;
+            List<XMLTemplate> ok = _templates.Where(x => x.Element == list && x.IdType == null).ToList();
+            List<string> fieldsNodes;
+            //Create attributes in Node
+            if (ok.Count > 0)
+            {
+                foreach (XMLTemplate pItem in ok)
+                {
+                    if (pItem.Column != null)
+                    {
+                        var perAux = fieldList.FindIndex(x => x.Contains(pItem.Section));
+                        if (fieldList[perAux + 1].ToString().Contains('|'))
+                        {
+                            fieldsNodes = fieldList[perAux + 1].ToString().Split('|').ToList();
+                        }
+                        else
+                        {
+                            fieldsNodes = fieldList[perAux + 2].ToString().Split('|').ToList();
+                        }
+
+
+                        attribute = doc.CreateAttribute(pItem.Attribute);
+                        attribute.Value = (pItem.FillWith != null || Convert.ToInt32(pItem.Column) < 0 ? pItem.FillWith : fieldsNodes[Convert.ToInt32(pItem.Column) - 1].ToString());
+                        //parent.Attributes.Append(attribute);
+                    }
+
+                }
+            }
+            return attribute;
         }
 
     }
