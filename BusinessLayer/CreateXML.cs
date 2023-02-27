@@ -42,12 +42,11 @@ namespace BusinessLayer
 
                 doc.AppendChild(rootnode);
 
-                CreateChildsHeader(doc, doc.SelectSingleNode("/*").Name, rootnode);
                 foreach (KeyValuePair<string, string> entry in att)
                 {
                     rootnode.SetAttribute(entry.Key, entry.Value);
                 }
-
+                CreateChildsNoParents(doc, doc.SelectSingleNode("/*").Name, rootnode);
                 #endregion
 
                 List<string> padres = _templates.Where(x => x.ParentElement == doc.SelectSingleNode("/*").Name).Select(x => x.Element).Distinct().ToList();
@@ -60,18 +59,23 @@ namespace BusinessLayer
                     IEnumerable<XMLTemplate> enumerable = _templates.Where(q => q.ParentElement == padres[x]).ToList();
                     if (enumerable.Count() > 0)
                     {
-                        parent = CreateNODES(doc, padres[x]);
+
+                        parent = CreateNODES(doc, padres[x], false);
+
                     }
                     else
                     {
                         parent = doc.CreateNode(XmlNodeType.Element, padres[x].ToString(), URL);
                         CreateChildsNoParents(doc, padres[x].ToString(), parent);
                     }
-                    rootnode.AppendChild(parent);
+                    if (parent != null)
+                    {
+                        rootnode.AppendChild(parent);
+                    }
 
 
                 }
-                doc.Save(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDoc‌​uments), "xml") + Guid.NewGuid().ToString() + ".xml");
+                doc.Save(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDoc‌​uments), "xml") + Guid.NewGuid().ToString() + ".xml");
             }
             catch (Exception e)
             {
@@ -79,28 +83,45 @@ namespace BusinessLayer
             }
         }
 
-        private XmlNode CreateNODES(XmlDocument doc, string padres)
+        private XmlNode CreateNODES(XmlDocument doc, string padres, bool IsOriginalParent)
         {
+            if (padres == "donat:Donatarias")
+            {
+            }
             XmlNode parent = null;
-            //XmlNode parent1 = null;
-            IEnumerable<XMLTemplate> enumerable = _templates.Where(q => q.ParentElement == padres).ToList();
+            IEnumerable<XMLTemplate> enumerable = _templates.Where(q => q.ParentElement == padres && q.Column != null).ToList();
             if (enumerable.Count() > 0)
             {
-
                 foreach (XMLTemplate ch in enumerable)
                 {
-                    parent = doc.CreateNode(XmlNodeType.Element, ch.ParentElement.ToString(), URL);
-                    XmlNode child = doc.CreateNode(XmlNodeType.Element, ch.Element, URL);
-                    CreateChildsNoParents(doc, ch.Element, child);
-
-                    parent.AppendChild(child);
-                    XmlNode parentOK = CreateNODES(doc, ch.Element);
-                    if (parentOK != null)
+                    if (!IsOriginalParent)
                     {
-                        parent.AppendChild(parentOK);
-                    }
+                        parent = doc.CreateNode(XmlNodeType.Element, padres, URL);
+                        XmlNode child = doc.CreateNode(XmlNodeType.Element, ch.Element, URL);
 
+                        CreateChildsNoParents(doc, ch.Element, child);
+
+                        parent.AppendChild(child);
+
+                        XmlNode parentOK = CreateNODES(doc, ch.Element, true);
+                        if (parentOK != null)
+                        {
+                            parent.AppendChild(parentOK);
+                        }
+                    }
+                    else
+                    {
+                        parent = doc.CreateNode(XmlNodeType.Element, ch.Element, URL);
+
+                        CreateChildsNoParents(doc, ch.Element, parent);
+                        XmlNode parentOK = CreateNODES(doc, ch.Element, true);
+                        if (parentOK != null)
+                        {
+                            parent.AppendChild(parentOK);
+                        }
+                    }
                 }
+
             }
             return parent;
 
@@ -127,7 +148,6 @@ namespace BusinessLayer
                             fieldsNodes = fieldList[perAux + 2].ToString().Split('|').ToList();
                         }
 
-
                         XmlAttribute attribute = doc.CreateAttribute(pItem.Attribute);
                         attribute.Value = (pItem.FillWith != null || Convert.ToInt32(pItem.Column) < 0 ? pItem.FillWith : fieldsNodes[Convert.ToInt32(pItem.Column) - 1].ToString());
                         parent.Attributes.Append(attribute);
@@ -136,37 +156,6 @@ namespace BusinessLayer
                 }
             }
 
-        }
-
-        private void CreateChildsHeader(XmlDocument doc, string list, XmlNode parent)
-        {
-            List<XMLTemplate> ok = _templates.Where(x => x.Element == list && x.IdType == null).ToList();
-            List<string> fieldsNodes;
-            //Create attributes in Node
-            if (ok.Count > 0)
-            {
-                foreach (XMLTemplate pItem in ok)
-                {
-                    if (pItem.Column != null)
-                    {
-                        var perAux = fieldList.FindIndex(x => x.Contains(pItem.Section));
-                        if (fieldList[perAux + 1].ToString().Contains('|'))
-                        {
-                            fieldsNodes = fieldList[perAux + 1].ToString().Split('|').ToList();
-                        }
-                        else
-                        {
-                            fieldsNodes = fieldList[perAux + 2].ToString().Split('|').ToList();
-                        }
-
-
-                        XmlAttribute attribute = doc.CreateAttribute(pItem.Attribute);
-                        attribute.Value = (pItem.FillWith != null || Convert.ToInt32(pItem.Column) < 0 ? pItem.FillWith : fieldsNodes[Convert.ToInt32(pItem.Column) - 1].ToString());
-                        parent.Attributes.Append(attribute);
-                    }
-
-                }
-            }
         }
 
     }
