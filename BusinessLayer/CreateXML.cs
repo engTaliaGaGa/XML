@@ -51,22 +51,61 @@ namespace BusinessLayer
 
                 #endregion
 
-                foreach (string pItem in ok)
-                {
-                    //Don't repeat root node
-                    string rootName = doc.SelectSingleNode("/*").Name;
-                    if (rootName != pItem)
-                    {                  //Create      
+                //foreach (string pItem in ok)
+                //{
+                //Don't repeat root node
 
-                        XmlNode parent = CreateNODES(doc, pItem, rootName);
-                        if (parent != null)
+
+                List<string> padres = _templates.Where(x => x.ParentElement == doc.SelectSingleNode("/*").Name).Select(x=> x.Element).Distinct().ToList();
+                List<string> hijos = _templates.Select(x => x.Element).ToList();
+
+
+
+                for (int x = 0; x < padres.Count(); x++)
+                {
+                    XmlNode parent = null;
+                    //string rootName = doc.SelectSingleNode("/*").Name;
+                    if (x > 0)
+                    {                  //Create      
+                                       //XmlNode parent = doc.CreateNode(XmlNodeType.Element, padres[x].ToString(), URL);
+                                       //CreateChildsNoParents(doc, padres[x].ToString(), parent);
+
+
+                        //rootnode.AppendChild(parent);
+
+                        IEnumerable<XMLTemplate> enumerable = _templates.Where(q => q.ParentElement == padres[x]).ToList();
+                        if (enumerable.Count() > 0)
                         {
-                            rootnode.AppendChild(parent);
+                            foreach (XMLTemplate ch in enumerable)
+                            {
+
+                                parent = doc.CreateNode(XmlNodeType.Element, padres[x].ToString(), URL);
+
+                                XmlNode child = doc.CreateNode(XmlNodeType.Element, ch.Element, URL);
+                                CreateChildsNoParents(doc, ch.Element, child);
+                                parent.AppendChild(child);
+                            }
+
+
                         }
+                        else
+                        {
+                            parent = doc.CreateNode(XmlNodeType.Element, padres[x].ToString(), URL);
+                            CreateChildsNoParents(doc, padres[x].ToString(), parent);
+                        }
+                        rootnode.AppendChild(parent);
 
                     }
-
                 }
+                //XmlNode parent = CreateNODES(doc, pItem, rootName);
+                //if (parent != null)
+                //{
+                //    rootnode.AppendChild(parent);
+                //}
+
+                //}
+
+                // }
 
                 doc.Save(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDoc‌​uments), "xml") + Guid.NewGuid().ToString() + ".xml");
             }
@@ -78,41 +117,70 @@ namespace BusinessLayer
 
         private XmlNode CreateNODES(XmlDocument doc, string list, string rootName)
         {
-
             XmlNode parent = null;
-            List<string> ok = (from up in _templates
-                               where _templates.Any(ut => ut.ParentElement == up.Element && up.Element == list)
-                               select up.ParentElement).Distinct().ToList();
-            if (ok.Count == 0)
+
+            List<string> padres = _templates.Select(x => x.ParentElement).Distinct().ToList();
+            List<string> hijos = _templates.Select(x => x.Element).ToList();
+
+
+
+            for (int x = 0; x < padres.Count(); x++)
             {
-                //Node without childs
-                parent = doc.CreateNode(XmlNodeType.Element, list, URL);
-
-
-                XMLTemplate pItem = _templates.Where(x => x.ParentElement == list && x.IdType == null).FirstOrDefault();
-                if (pItem != null)
+                if (rootName != padres[x].ToString() || padres[x].ToString() != "root")
                 {
-                    XmlNode parentCicle = CreateNODES(doc, pItem.Element, rootName);
-                    //Create Childs to Node 
-                    CreateChildsNoParents(doc, list, parentCicle);
-                    parent.AppendChild(parentCicle);
-                }
-                else
-                {
-                    CreateChildsNoParents(doc, list, parent);
+                    parent = doc.CreateNode(XmlNodeType.Element, padres[x].ToString(), URL);
+                    // CreateChildsNoParents(doc, padres[x].ToString(), parent);
+                    for (int y = 0; y < _templates.Count(); y++)
+                    {
+
+                        if (_templates[y].ParentElement == padres[x].ToString())
+                        {
+                            XmlNode parentCicle = doc.CreateNode(XmlNodeType.Element, _templates[y].Element, URL);
+                            CreateChildsNoParents(doc, list, parent);
+                            parent.AppendChild(parentCicle);
+                            Console.WriteLine("padre" + padres[x] + "hijo" + _templates[y].Element);
+                        }
+                    }
                 }
             }
-            else
-            {
-                parent = doc.CreateNode(XmlNodeType.Element, list, URL);
 
-                //Create Childs to Node 
-                CreateChildsNoParents(doc, list, parent);
-                XMLTemplate pItem = _templates.Where(x => x.ParentElement == list && x.IdType == null).FirstOrDefault();
-                XmlNode parentCicle = CreateNODES(doc, pItem.Element, rootName);
-                CreateChildsParent(doc, list, parentCicle);
-                parent.AppendChild(parentCicle);
-            }
+
+            //XmlNode parent = null;
+            //List<string> ok = (from up in _templates
+            //                   where _templates.Any(ut => ut.ParentElement == up.Element && up.Element == list)
+            //                   select up.ParentElement).Distinct().ToList();
+
+            //int IsParent = _templates.Where(x => x.ParentElement == list).Count();
+            //if (ok.Count == 0)
+            //{
+            //    //Node without childs
+            //    parent = doc.CreateNode(XmlNodeType.Element, list, URL);
+
+            //    CreateChildsNoParents(doc, list, parent);
+            //    XMLTemplate pItem = _templates.Where(x => x.ParentElement == list && x.IdType == null).FirstOrDefault();
+            //    if (pItem != null)
+            //    {
+            //        XmlNode parentCicle = CreateNODES(doc, pItem.Element, rootName);
+            //        //Create Childs to Node 
+            //        CreateChildsNoParents(doc, list, parentCicle);
+            //        parent.AppendChild(parentCicle);
+            //    }
+            //    else
+            //    {
+            //        CreateChildsNoParents(doc, list, parent);
+            //    }
+            //}
+            //else
+            //{
+            //    parent = doc.CreateNode(XmlNodeType.Element, list, URL);
+
+            //    //Create Childs to Node 
+            //    CreateChildsNoParents(doc, list, parent);
+            //    XMLTemplate pItem = _templates.Where(x => x.ParentElement == list && x.IdType == null).FirstOrDefault();
+            //    XmlNode parentCicle = CreateNODES(doc, pItem.Element, rootName);
+            //    CreateChildsParent(doc, list, parentCicle);
+            //    parent.AppendChild(parentCicle);
+            //}
             return parent;
 
         }
