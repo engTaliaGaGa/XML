@@ -83,18 +83,15 @@ namespace BusinessLayer
             }
         }
 
-        private XmlNode CreateNODES(XmlDocument doc, string padres, bool IsOriginalParent)
+        private XmlNode CreateNODES(XmlDocument doc, string padres, bool IsChilParent)
         {
-            if (padres == "donat:Donatarias")
-            {
-            }
             XmlNode parent = null;
             IEnumerable<XMLTemplate> enumerable = _templates.Where(q => q.ParentElement == padres && q.Column != null).ToList();
             if (enumerable.Count() > 0)
             {
                 foreach (XMLTemplate ch in enumerable)
                 {
-                    if (!IsOriginalParent)
+                    if (!IsChilParent)
                     {
                         parent = doc.CreateNode(XmlNodeType.Element, padres, URL);
                         XmlNode child = doc.CreateNode(XmlNodeType.Element, ch.Element, URL);
