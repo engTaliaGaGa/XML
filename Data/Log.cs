@@ -18,12 +18,13 @@ namespace DataLayer
         {
         }
 
-        public void WriteLog(System.Exception e, string file)
+        public void WriteLog(string message, string Stack, string file)
         {
             Log log = new Log();
             LogError logError = new LogError
             {
-                Message = e.ToString(),
+                Message = message,
+                Stack = Stack,
                 File = file
             };
             log.InsertLog(logError);
@@ -36,6 +37,12 @@ namespace DataLayer
             parameterList.Add(new SqlParameter()
             {
                 ParameterName = $"@Message",
+                SqlDbType = SqlDbType.VarChar,
+                Value = logError.Message
+            });
+            parameterList.Add(new SqlParameter()
+            {
+                ParameterName = $"@Stack",
                 SqlDbType = SqlDbType.VarChar,
                 Value = logError.Message
             });

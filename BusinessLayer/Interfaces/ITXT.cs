@@ -5,9 +5,9 @@ using System.Text;
 
 namespace DataLayer.Interfaces
 {
-    public interface IXML
+    public interface ITXT
     {
-        void CreationXML(string[] fields, List<XMLTemplate> templates);
 
+        bool LoadTXT(string fileStream);
     }
 }

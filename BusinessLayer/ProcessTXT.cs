@@ -1,5 +1,7 @@
-﻿using DataLayer;
+﻿using BusinessLayer.Interfaces;
+using DataLayer;
 using DataLayer.Interfaces;
+using DataLayer.SFTP;
 using EntityLayer;
 using System;
 using System.Collections.Generic;
@@ -8,11 +10,15 @@ using System.Text;
 
 namespace BusinessLayer
 {
-    public class ProcessTXT: ITXT
+    public class ProcessTXT : ITXT
     {
-        public void LoadTXT(string fileStream)
+        public bool LoadTXT(string fileStream)
         {
             Log log = new Log();
+            bool prosecuted = false;
+            IXML xml = new CreateXML();
+            ISFTP sftp = new SFTP();
+            const int client = 1;
             try
             {
                 using (var streamReader = new StreamReader(fileStream, Encoding.UTF8))
@@ -24,15 +30,21 @@ namespace BusinessLayer
                     string[] fields = contents.Split(delims, StringSplitOptions.RemoveEmptyEntries);
                     XMLProcess process = new XMLProcess();
 
-                    List<XMLTemplate> templates = process.GetTemplate(1);
-                    CreateXML createXML = new CreateXML();
-                    createXML.CreationXML(fields, templates);
+                    List<XMLTemplate> templates = process.GetTemplate(client);
+                    prosecuted = xml.CreationXML(fields, templates);
+
+                    if (!prosecuted)
+                    {
+                        sftp.ErrorFile(fileStream);
+                        log.WriteLog("Error", "Process file", fileStream);
+                    }
                 }
             }
             catch (Exception e)
             {
-                log.WriteLog(e, fileStream);
+                log.WriteLog(e.Message, e.StackTrace, fileStream);
             }
+            return prosecuted;
         }
     }
 }

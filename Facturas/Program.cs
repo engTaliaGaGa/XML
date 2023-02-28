@@ -1,5 +1,8 @@
 ﻿using BusinessLayer;
+using BusinessLayer.Interfaces;
 using DataLayer;
+using DataLayer.Interfaces;
+using DataLayer.SFTP;
 using System;
 using System.Collections.Generic;
 
@@ -11,18 +14,23 @@ namespace Facturas
         static void Main(string[] args)
         {
             Log log = new Log();
-
-            ProcessTXT processTXT = new ProcessTXT();
-            List<string> paths = SFTP.SFTP.ConnectionSFTP();
+            bool prosecuted;
+            ITXT processTXT = new ProcessTXT();
+            ISFTP sftp = new SFTP();
+            List<string> paths = sftp.ConnectionSFTP();
             foreach (string path in paths)
             {
                 try
                 {
-                    processTXT.LoadTXT(path);
+                    prosecuted = processTXT.LoadTXT(path);
+                    if (!prosecuted)
+                    {
+                        sftp.ErrorFile(path);
+                    }
                 }
                 catch (Exception e)
                 {
-                    log.WriteLog(e, path);
+                    log.WriteLog(e.Message, e.StackTrace, path);
                 }
             }
 

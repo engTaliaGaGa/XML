@@ -8,6 +8,7 @@ namespace EntityLayer
     {
         public string Message { get; set; }
         public string File { get; set; }
+        public string Stack { get; set; }
 
     }
 }
