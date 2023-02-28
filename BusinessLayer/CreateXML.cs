@@ -4,8 +4,10 @@ using EntityLayer;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
+using System.Resources;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -21,8 +23,8 @@ namespace BusinessLayer
         XMLProcess xml = new XMLProcess();
         List<XMLTemplate> _templates = new List<XMLTemplate>();
         List<string> fieldList = new List<string>();
-        const string URL = "http://www.sat.gob.mx/cfd/3";
-        const string prefix = "cfdi";
+        string URL = Resource.URL;
+        string prefix = Resource.prefix;
         public void CreationXML(string[] fields, List<XMLTemplate> templates)
         {
             try
@@ -49,24 +51,24 @@ namespace BusinessLayer
                 CreateChildsNoParents(doc, doc.SelectSingleNode("/*").Name, rootnode);
                 #endregion
 
-                List<string> padres = _templates.Where(x => x.ParentElement == doc.SelectSingleNode("/*").Name).Select(x => x.Element).Distinct().ToList();
-                List<string> hijos = _templates.Select(x => x.Element).ToList();
+                List<string> ParentNode = _templates.Where(x => x.ParentElement == doc.SelectSingleNode("/*").Name).Select(x => x.Element).Distinct().ToList();
+                List<string> ChildNode = _templates.Select(x => x.Element).ToList();
 
-                for (int x = 0; x < padres.Count(); x++)
+                for (int x = 0; x < ParentNode.Count(); x++)
                 {
                     XmlNode parent = null;
 
-                    IEnumerable<XMLTemplate> enumerable = _templates.Where(q => q.ParentElement == padres[x]).ToList();
+                    IEnumerable<XMLTemplate> enumerable = _templates.Where(q => q.ParentElement == ParentNode[x]).ToList();
                     if (enumerable.Count() > 0)
                     {
 
-                        parent = CreateNODES(doc, padres[x], false);
+                        parent = CreateNodes(doc, ParentNode[x], false);
 
                     }
                     else
                     {
-                        parent = doc.CreateNode(XmlNodeType.Element, padres[x].ToString(), URL);
-                        CreateChildsNoParents(doc, padres[x].ToString(), parent);
+                        parent = doc.CreateNode(XmlNodeType.Element, ParentNode[x].ToString(), URL);
+                        CreateChildsNoParents(doc, ParentNode[x].ToString(), parent);
                     }
                     if (parent != null)
                     {
@@ -75,35 +77,41 @@ namespace BusinessLayer
 
 
                 }
-                doc.Save(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDoc‌​uments), "xml") + Guid.NewGuid().ToString() + ".xml");
+
+                SaveDoc(doc);
             }
             catch (Exception e)
             {
                 log.WriteLog(e, System.Reflection.MethodBase.GetCurrentMethod().Name.ToString());
             }
         }
-
-        private XmlNode CreateNODES(XmlDocument doc, string padres, bool IsChilParent)
+        private void SaveDoc(XmlDocument doc)
+        {
+            string destLocalPath = ConfigurationManager.AppSettings["LocalPathXML"];
+            Directory.CreateDirectory(destLocalPath);
+            doc.Save(Path.Combine(destLocalPath, "xml") + Guid.NewGuid().ToString() + ".xml");
+        }
+        private XmlNode CreateNodes(XmlDocument doc, string ParentNode, bool IsChilParent)
         {
             XmlNode parent = null;
-            IEnumerable<XMLTemplate> enumerable = _templates.Where(q => q.ParentElement == padres && q.Column != null).ToList();
-            if (enumerable.Count() > 0)
+            List<XMLTemplate> values = _templates.Where(q => q.ParentElement == ParentNode && q.Column != null).ToList();
+            if (values.Count() > 0)
             {
-                foreach (XMLTemplate ch in enumerable)
+                foreach (XMLTemplate ch in values)
                 {
                     if (!IsChilParent)
                     {
-                        parent = doc.CreateNode(XmlNodeType.Element, padres, URL);
+                        parent = doc.CreateNode(XmlNodeType.Element, ParentNode, URL);
                         XmlNode child = doc.CreateNode(XmlNodeType.Element, ch.Element, URL);
 
                         CreateChildsNoParents(doc, ch.Element, child);
 
                         parent.AppendChild(child);
 
-                        XmlNode parentOK = CreateNODES(doc, ch.Element, true);
-                        if (parentOK != null)
+                        XmlNode parentNode = CreateNodes(doc, ch.Element, true);
+                        if (parentNode != null)
                         {
-                            parent.AppendChild(parentOK);
+                            parent.AppendChild(parentNode);
                         }
                     }
                     else
@@ -111,10 +119,10 @@ namespace BusinessLayer
                         parent = doc.CreateNode(XmlNodeType.Element, ch.Element, URL);
 
                         CreateChildsNoParents(doc, ch.Element, parent);
-                        XmlNode parentOK = CreateNODES(doc, ch.Element, true);
-                        if (parentOK != null)
+                        XmlNode parentNode = CreateNodes(doc, ch.Element, true);
+                        if (parentNode != null)
                         {
-                            parent.AppendChild(parentOK);
+                            parent.AppendChild(parentNode);
                         }
                     }
                 }
@@ -126,12 +134,12 @@ namespace BusinessLayer
 
         private void CreateChildsNoParents(XmlDocument doc, string list, XmlNode parent)
         {
-            List<XMLTemplate> ok = _templates.Where(x => x.Element == list && x.IdType == null).ToList();
+            List<XMLTemplate> values = _templates.Where(x => x.Element == list && x.IdType == null).ToList();
             List<string> fieldsNodes;
             //Create attributes in Node
-            if (ok.Count > 0)
+            if (values.Count > 0)
             {
-                foreach (XMLTemplate pItem in ok)
+                foreach (XMLTemplate pItem in values)
                 {
                     if (pItem.Column != null)
                     {
